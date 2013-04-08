@@ -203,6 +203,39 @@ static char *ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data);
 
 static ngx_conf_post_handler_pt  ngx_http_auth_crowd_p = ngx_http_auth_crowd;
 
+static char *
+ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data)
+{
+    ngx_str_t  *realm = data;
+
+    size_t   len;
+    u_char  *basic, *p;
+
+    if (ngx_strcmp(realm->data, "off") == 0) {
+        realm->len = 0;
+        realm->data = (u_char *) "";
+
+        return NGX_CONF_OK;
+    }
+
+    len = sizeof("Basic realm=\"") - 1 + realm->len + 1;
+
+    basic = ngx_palloc(cf->pool, len);
+    if (basic == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    p = ngx_cpymem(basic, "Basic realm=\"", sizeof("Basic realm=\"") - 1);
+    p = ngx_cpymem(p, realm->data, realm->len);
+    *p = '"';
+
+    realm->len = len;
+    realm->data = basic;
+
+    return NGX_CONF_OK;
+}
+
+
 static ngx_command_t  ngx_http_auth_crowd_commands[] = {
 
     { ngx_string("auth_crowd"),
@@ -421,36 +454,3 @@ ngx_http_auth_crowd_init(ngx_conf_t *cf)
 
     return NGX_OK;
 }
-
-static char *
-ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data)
-{
-    ngx_str_t  *realm = data;
-
-    size_t   len;
-    u_char  *basic, *p;
-
-    if (ngx_strcmp(realm->data, "off") == 0) {
-        realm->len = 0;
-        realm->data = (u_char *) "";
-
-        return NGX_CONF_OK;
-    }
-
-    len = sizeof("Basic realm=\"") - 1 + realm->len + 1;
-
-    basic = ngx_palloc(cf->pool, len);
-    if (basic == NULL) {
-        return NGX_CONF_ERROR;
-    }
-
-    p = ngx_cpymem(basic, "Basic realm=\"", sizeof("Basic realm=\"") - 1);
-    p = ngx_cpymem(p, realm->data, realm->len);
-    *p = '"';
-
-    realm->len = len;
-    realm->data = basic;
-
-    return NGX_CONF_OK;
-}
-
