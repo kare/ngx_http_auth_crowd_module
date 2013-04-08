@@ -14,6 +14,15 @@
 
 // CROWD AUTHENTICATION
 
+static const char *CROWD_SESSION_JSON_TEMPLATE= "{\
+  \"username\": \"%s\",\
+  \"password\": \"%s\",\
+  \"validation-factors\": {\
+      \"validationFactors\": [{\
+            \"name\": \"remote_address\",\
+            \"value\": \"%s\"\
+}]}}";
+
 struct CrowdRequest {
     const char *username;
     const char *password;
@@ -26,7 +35,7 @@ struct CrowdResponse {
     int response;
     char error_message[255];
 };
-char curl_error_buffer[CURL_ERROR_SIZE];
+char curl_error_message[CURL_ERROR_SIZE];
 struct HttpResponse {
     char *body;
     size_t length;
@@ -35,6 +44,22 @@ struct HttpRequest {
     const char *body;
     size_t length;
 };
+int parse_token_from_json(char const *s, char **token) {
+    const char *START = "\"token\":\"";
+    char *_token = strdup(s);
+    char *t, *end;
+
+    t = strstr(_token, START);
+    if (!t) {
+        return -1;
+    }
+    end = strchr(t, ',');
+    if (end) {
+        *(--end) = '\0';
+    }
+    *token = t + strlen(START);
+    return 1;
+}
 static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *userp) {
     struct HttpRequest *data = (struct HttpRequest *) userp;
     if (size * nmemb < 1)
@@ -81,22 +106,22 @@ void print_cookies(CURL *curl, ngx_log_t *log) {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "END COOKIE DEBUG");
     curl_slist_free_all(cookies);
 }
-int authenticate(struct CrowdRequest crowd_request, ngx_log_t *log) {
-    char password_json[128];
-    snprintf(password_json, sizeof(password_json), "{\"value\": \"%s\"}", crowd_request.password);
+int authenticate(struct CrowdRequest crowd_request, char **token) {
+    char session_json[256];
+    snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE, crowd_request.username, crowd_request.password, "10.1.18.86");
     struct HttpRequest request;
-    request.body = password_json;
-    request.length = strlen(password_json);
+    request.body = session_json;
+    request.length = strlen(session_json);
     struct HttpResponse response;
-    response.body = calloc(sizeof(char), 1);
+    response.body = calloc(1, sizeof(char));
     response.length = 0;
 
     CURL *curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error_buffer);
-    const char *url_template = "%s/rest/usermanagement/1/authentication?username=%s";
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error_message);
+    const char *url_template = "%s/crowd/rest/usermanagement/latest/session";
     char url_buf[256];
-    snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url, crowd_request.username);
+    snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url);
     curl_easy_setopt(curl, CURLOPT_URL, url_buf);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -111,41 +136,31 @@ int authenticate(struct CrowdRequest crowd_request, ngx_log_t *log) {
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "nginx-auth-agent/1.0");
-    curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "");
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, "Accept: application/json");
     headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Expect:");
-    char cookie[256];
-    snprintf(cookie, sizeof(cookie), "Set-Cookie: OLD_PREF=3d141414bf4209321; expires=Sun, 17-Jan-2038 19:14:07 GMT; path=/; domain=crowd.core.reaktor.fi");
-    headers = curl_slist_append(headers, cookie);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     CURLcode curl_code = curl_easy_perform(curl);
-    int return_code = 1;
-    if (curl_code != 0) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0,
-              "CURL response error: '%s'", curl_easy_strerror(curl_code));
-        return_code = -2;
-        goto cleanup;
-    }
-    print_cookies(curl, log);
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    if (http_code != 200) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0,
-              "Crowd user: '%s' curl code: '%d' http response code: '%d'",
-              crowd_request.username, curl_code, http_code);
-        return_code = -1;
+    int error_code = 1;
+    if (curl_code != 0) {
+        error_code = -1;
+    } 
+    printf("HTTP CODE: %ld\n", http_code);
+    if (http_code == 201) {
+      error_code = parse_token_from_json(response.body, token);
+      goto cleanup;
     }
 cleanup:
     free(response.body);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    return return_code;
+    return error_code;
 }
-
 // END CROWD AUTHENTICATION
 
 /* Module context data */
@@ -325,7 +340,9 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     request.server_url = (char *) alcf->crowd_url.data;
     request.server_username = (char *) alcf->crowd_service.data;
     request.server_password = (char *) alcf->crowd_password.data;
-    int status = authenticate(request, r->connection->log);
+    char *token;
+    int status = authenticate(request, &token);
+    //int status = authenticate(request, r->connection->log);
     if (status > 0) {
         return NGX_OK;
     }
