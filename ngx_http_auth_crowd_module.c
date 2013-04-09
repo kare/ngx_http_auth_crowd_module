@@ -329,6 +329,8 @@ static ngx_command_t  ngx_http_auth_crowd_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_crowd_loc_conf_t, crowd_password),
       NULL },
+
+    ngx_null_command
 };
 
 
