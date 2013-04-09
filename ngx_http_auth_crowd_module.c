@@ -150,7 +150,6 @@ int authenticate(struct CrowdRequest crowd_request, char **token) {
     if (curl_code != 0) {
         error_code = -1;
     } 
-    printf("HTTP CODE: %ld\n", http_code);
     if (http_code == 201) {
       error_code = parse_token_from_json(response.body, token);
       goto cleanup;
