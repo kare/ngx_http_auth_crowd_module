@@ -144,7 +144,7 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
 
     CURL *curl = curl_easy_init();
     if (curl) 
-	return -1;
+	return NGX_ERROR;
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -177,9 +177,9 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
     CURLcode curl_code = curl_easy_perform(curl);
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    int error_code = 1;
+    int error_code = NGX_OK;
     if (curl_code != 0) {
-        error_code = -1;
+        error_code = NGX_ERROR;
     } 
     /* We return token only when we are creating it */
     if (http_code == expected_http_code) {
@@ -187,7 +187,7 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
 	    error_code = parse_token_from_json(response.body, token);       
 	goto cleanup;
     } else {
-	error_code = -http_code;
+	error_code = NGX_ERROR;
     }
 
 cleanup:
