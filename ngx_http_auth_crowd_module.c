@@ -59,6 +59,14 @@ struct HttpRequest {
     size_t length;
 };
 
+static ngx_int_t
+ngx_http_auth_crowd_get_token(ngx_http_request_t *r, ngx_str_t *token)
+{
+    ngx_str_t name = ngx_string("crowd.token_key");
+
+    return  ngx_http_parse_multi_header_lines(&r->headers_in.cookies, &name, token);
+}
+
 int parse_token_from_json(char const *s, char **token) {
     const char *START = "\"token\":\"";
     char *_token = strdup(s);
@@ -143,7 +151,7 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
     request_url = crowd_request.request_url;
 
     CURL *curl = curl_easy_init();
-    if (curl) 
+    if (curl)
 	return NGX_ERROR;
 
     struct curl_slist *headers = NULL;
@@ -183,7 +191,7 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
     } 
     /* We return token only when we are creating it */
     if (http_code == expected_http_code) {
-	if (token != NULL) 
+	if (token != NULL)
 	    error_code = parse_token_from_json(response.body, token);       
 	goto cleanup;
     } else {
@@ -378,6 +386,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
     ngx_int_t  rc;
     ngx_http_auth_crowd_ctx_t  *ctx;
     ngx_http_auth_crowd_loc_conf_t  *alcf;
+    ngx_str_t token;
 
     alcf = ngx_http_get_module_loc_conf(r, ngx_http_auth_crowd_module);
 
@@ -391,11 +400,27 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
         return ngx_http_auth_crowd_authenticate(r, ctx, &ctx->passwd, alcf);
     }
 
+    /* Validate old SSO session */
+    rc = ngx_http_auth_crowd_get_token(r, &token);
+    if (rc != NGX_DECLINED) {
+	struct CrowdRequest request;
+
+	request.server_url = (char *) alcf->crowd_url.data;
+	request.server_username = (char *) alcf->crowd_service.data;
+	request.server_password = (char *) alcf->crowd_password.data;
+	request.username = NULL;
+	request.password = NULL;
+
+	rc = validate_sso_session_token(request, (const char *)token.data);
+	if (rc != NGX_OK)
+	    return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
+    }
+ 
+    /* Create new SSO session */
     /* Decode http auth user and passwd, leaving values on the request */
     rc = ngx_http_auth_basic_user(r);
-
     if (rc == NGX_DECLINED) {
-        return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
+	return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
     }
 
     if (rc == NGX_ERROR) {
@@ -420,7 +445,7 @@ static ngx_int_t
 ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *token)
 {
     const char cookie_template[] = "crowd.toked=%s; secure";
-    ngx_table_elt_t   *h;
+    ngx_table_elt_t  *h;
     char *cookie;
     size_t len = sizeof(cookie_template) + strlen(token); 
     
@@ -468,6 +493,7 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
             break;
 	}
     }
+
     uname_buf = ngx_palloc(r->pool, len + 1);
     if (uname_buf == NULL) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -488,16 +514,6 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     request.server_password = (char *) alcf->crowd_password.data;
 
     print_headers(r, r->connection->log);
-    ngx_str_t value;
-    ngx_str_t name = ngx_string("crowd.token_key");
-    ngx_int_t rc = ngx_http_parse_multi_header_lines(&r->headers_in.cookies, &name, &value);
-    if (!rc) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "START VALIDATE");
-        rc = validate_sso_session_token(request, (char *) value.data);
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "END VALIDATE");
-	if (rc == NGX_OK)
-	    return NGX_OK;
-    }
 
     char *token;
     int status = create_sso_session(request, &token);
