@@ -493,9 +493,10 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     ngx_int_t rc = ngx_http_parse_multi_header_lines(&r->headers_in.cookies, &name, &value);
     if (!rc) {
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "START VALIDATE");
-        ngx_int_t rc = validate_sso_session_token(request, (char *) value.data);
+        rc = validate_sso_session_token(request, (char *) value.data);
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "END VALIDATE");
-	return rc;
+	if (rc == NGX_OK)
+	    return NGX_OK;
     }
 
     char *token;
