@@ -417,6 +417,37 @@ void print_headers(ngx_http_request_t *r, ngx_log_t *log) {
 }
 
 static ngx_int_t
+ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *token)
+{
+    const char cookie_template[] = "crowd.toked=%s; secure";
+    ngx_table_elt_t   *h;
+    char *cookie;
+    size_t len = sizeof(cookie_template) + strlen(token); 
+    
+    cookie = ngx_pnalloc(r->pool, len);
+    if (cookie == NULL) {
+	return NGX_ERROR;
+    }
+
+    snprintf(cookie, len, cookie_template, token);
+
+    h = ngx_list_push(&r->headers_out.headers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+ 
+    h->key.data = (u_char *) "Set-Cookie";
+    h->key.len = sizeof("Set-Cookie") - 1;
+
+    h->value.data = (u_char *)cookie;
+    h->value.len = len - 1;
+
+    h->hash = 1;
+
+    return NGX_OK;
+}
+
+static ngx_int_t
 ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     ngx_http_auth_crowd_ctx_t *ctx, ngx_str_t *passwd, void *conf)
 {
@@ -470,7 +501,7 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     char *token;
     int status = create_sso_session(request, &token);
     if (status > 0) {
-        return NGX_OK;
+	return ngx_http_auth_crowd_set_cookie(r, token);
     }
 
     return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
