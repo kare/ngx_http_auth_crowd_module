@@ -517,7 +517,7 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
 
     char *token;
     int status = create_sso_session(request, &token);
-    if (status > 0) {
+    if (status == NGX_OK) {
 	return ngx_http_auth_crowd_set_cookie(r, token);
     }
 
