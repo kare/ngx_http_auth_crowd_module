@@ -197,7 +197,7 @@ cleanup:
     return error_code;    
 }
 
-int authenticate(struct CrowdRequest crowd_request, char **token)
+int create_sso_session(struct CrowdRequest crowd_request, char **token)
 {
     const char *url_template = "%s/crowd/rest/usermanagement/latest/session";
     char session_json[256];
@@ -215,7 +215,7 @@ int authenticate(struct CrowdRequest crowd_request, char **token)
     return curl_transaction(crowd_request, 201, token);
     
 }
-int validate(struct CrowdRequest crowd_request, const char *token)
+int validate_sso_session_token(struct CrowdRequest crowd_request, const char *token)
 {
     const char *url_template = "%s/crowd/rest/usermanagement/latest/session/%s";
     char session_json[256];
@@ -462,13 +462,13 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     ngx_int_t rc = ngx_http_parse_multi_header_lines(&r->headers_in.cookies, &name, &value);
     if (!rc) {
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "START VALIDATE");
-        ngx_int_t rc = validate(request, (char *) value.data);
+        ngx_int_t rc = validate_sso_session_token(request, (char *) value.data);
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0, "END VALIDATE");
-        return rc;
+	return rc;
     }
 
     char *token;
-    int status = authenticate(request, &token);
+    int status = create_sso_session(request, &token);
     if (status > 0) {
         return NGX_OK;
     }
