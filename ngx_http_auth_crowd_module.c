@@ -74,14 +74,14 @@ int parse_token_from_json(char const *s, char **token) {
 
     t = strstr(_token, START);
     if (!t) {
-        return -1;
+        return NGX_DECLINED;
     }
     end = strchr(t, ',');
     if (end) {
         *(--end) = '\0';
     }
     *token = t + strlen(START);
-    return 1;
+    return NGX_OK;
 }
 static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *userp) {
     struct HttpRequest *data = (struct HttpRequest *) userp;
