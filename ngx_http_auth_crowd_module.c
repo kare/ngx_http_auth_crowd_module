@@ -151,7 +151,7 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
     request_url = crowd_request.request_url;
 
     CURL *curl = curl_easy_init();
-    if (curl)
+    if (curl == NULL)
 	return NGX_ERROR;
 
     struct curl_slist *headers = NULL;
