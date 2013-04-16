@@ -447,7 +447,7 @@ ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *token)
     const char cookie_template[] = "crowd.token_key=%s;secure";
     ngx_table_elt_t  *h;
     char *cookie;
-    size_t len = sizeof(cookie_template) - 1 + strlen(token) - 2; 
+    size_t len = sizeof(cookie_template) + strlen(token) - 2; 
     
     cookie = ngx_pnalloc(r->pool, len);
     if (cookie == NULL) {
