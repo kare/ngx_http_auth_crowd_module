@@ -40,6 +40,7 @@ struct CrowdRequest {
     /* dynamically generated */
     const char *username; /* only to basic auth */
     const char *password; /* only to basic auth */
+    const char *remote_addr; /* client's ip */
     const char *request_url; /* request url, including server_url */
     const char *body; /* request body */
     unsigned int body_length;
@@ -212,7 +213,7 @@ int create_sso_session(struct CrowdRequest crowd_request, char **token)
     char url_buf[256];
 
     snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
-	     crowd_request.username, crowd_request.password, "10.1.18.86");
+	     crowd_request.username, crowd_request.password, crowd_request.remote_addr);
     
     snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url);
 
@@ -230,7 +231,7 @@ int validate_sso_session_token(struct CrowdRequest crowd_request, const char *to
     char url_buf[256];
 
     snprintf(session_json, sizeof(session_json), CROWD_SESSION_VALIDATE_JSON_TEMPLATE,
-	     "10.1.18.86");
+	     crowd_request.remote_addr);
     snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url, token); 
 
     crowd_request.body = session_json;
@@ -410,6 +411,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	request.server_password = (char *) alcf->crowd_password.data;
 	request.username = NULL;
 	request.password = NULL;
+	request.remote_addr = (char *) r->connection->addr_text.data;
 
 	rc = validate_sso_session_token(request, (const char *)token.data);
 	if (rc != NGX_OK)
@@ -512,6 +514,7 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     request.server_url = (char *) alcf->crowd_url.data;
     request.server_username = (char *) alcf->crowd_service.data;
     request.server_password = (char *) alcf->crowd_password.data;
+    request.remote_addr = (char *) r->connection->addr_text.data;
 
     print_headers(r, r->connection->log);
 
