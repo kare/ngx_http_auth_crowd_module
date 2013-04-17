@@ -21,14 +21,14 @@ static const char *CROWD_SESSION_JSON_TEMPLATE= "{\
   \"password\": \"%s\",\
   \"validation-factors\": {\
       \"validationFactors\": [{\
-            \"name\": \"remote_address\",\
-            \"value\": \"%s\"\
+           \"name\": \"remote_address\",\
+           \"value\": \"%s\"\
 }]}}";
 
 static const char *CROWD_SESSION_VALIDATE_JSON_TEMPLATE= "{\
       \"validationFactors\": [{\
-            \"name\": \"remote_address\",\
-            \"value\": \"%s\"\
+            \"name\": \"remote_address\", \
+            \"value\": \"%s\" \
 }]}";
 
 struct CrowdRequest {
@@ -75,11 +75,11 @@ int parse_token_from_json(char const *s, char **token) {
 
     t = strstr(_token, START);
     if (!t) {
-        return NGX_DECLINED;
+	return NGX_DECLINED;
     }
     end = strchr(t, ',');
     if (end) {
-        *(--end) = '\0';
+	*(--end) = '\0';
     }
     *token = t + strlen(START);
     return NGX_OK;
@@ -119,15 +119,15 @@ void print_cookies(CURL *curl, ngx_log_t *log) {
     struct curl_slist *cookies;
     CURLcode res = curl_easy_getinfo(curl, CURLINFO_COOKIELIST, &cookies);
     if (res != CURLE_OK) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "Get cookies failed: '%s'", curl_easy_strerror(res));
+	ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "Get cookies failed: '%s'", curl_easy_strerror(res));
     }
     struct curl_slist *nc = cookies;
     int i = 1;
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "COOKIE DEBUG");
     while (nc) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "[%d]: '%s'", i, nc->data);
-        nc = nc->next;
-        i++;
+	ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "[%d]: '%s'", i, nc->data);
+	nc = nc->next;
+	i++;
     }
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "END COOKIE DEBUG");
     curl_slist_free_all(cookies);
@@ -188,12 +188,12 @@ int curl_transaction(struct CrowdRequest crowd_request, int expected_http_code, 
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     int error_code = NGX_OK;
     if (curl_code != 0) {
-        error_code = NGX_ERROR;
-    } 
+	error_code = NGX_ERROR;
+    }
     /* We return token only when we are creating it */
     if (http_code == expected_http_code) {
 	if (token != NULL)
-	    error_code = parse_token_from_json(response.body, token);       
+	    error_code = parse_token_from_json(response.body, token);
 	goto cleanup;
     } else {
 	error_code = NGX_ERROR;
@@ -203,7 +203,7 @@ cleanup:
     free(response.body);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    return error_code;    
+    return error_code;
 }
 
 int create_sso_session(struct CrowdRequest crowd_request, char **token)
@@ -214,7 +214,7 @@ int create_sso_session(struct CrowdRequest crowd_request, char **token)
 
     snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
 	     crowd_request.username, crowd_request.password, crowd_request.remote_addr);
-    
+
     snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url);
 
     crowd_request.body = session_json;
@@ -222,8 +222,8 @@ int create_sso_session(struct CrowdRequest crowd_request, char **token)
     crowd_request.request_url = url_buf;
 
     return curl_transaction(crowd_request, 201, token);
-    
 }
+
 int validate_sso_session_token(struct CrowdRequest crowd_request, const char *token)
 {
     const char *url_template = "%s/crowd/rest/usermanagement/latest/session/%s";
@@ -232,7 +232,7 @@ int validate_sso_session_token(struct CrowdRequest crowd_request, const char *to
 
     snprintf(session_json, sizeof(session_json), CROWD_SESSION_VALIDATE_JSON_TEMPLATE,
 	     crowd_request.remote_addr);
-    snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url, token); 
+    snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url, token);
 
     crowd_request.body = session_json;
     crowd_request.body_length = strlen(session_json);
@@ -291,17 +291,17 @@ ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data)
     u_char  *basic, *p;
 
     if (ngx_strcmp(realm->data, "off") == 0) {
-        realm->len = 0;
-        realm->data = (u_char *) "";
+	realm->len = 0;
+	realm->data = (u_char *) "";
 
-        return NGX_CONF_OK;
+	return NGX_CONF_OK;
     }
 
     len = sizeof("Basic realm=\"") - 1 + realm->len + 1;
 
     basic = ngx_palloc(cf->pool, len);
     if (basic == NULL) {
-        return NGX_CONF_ERROR;
+	return NGX_CONF_ERROR;
     }
 
     p = ngx_cpymem(basic, "Basic realm=\"", sizeof("Basic realm=\"") - 1);
@@ -392,13 +392,13 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
     alcf = ngx_http_get_module_loc_conf(r, ngx_http_auth_crowd_module);
 
     if (alcf->realm.len == 0) {
-        return NGX_DECLINED;
+	return NGX_DECLINED;
     }
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_auth_crowd_module);
 
     if (ctx) {
-        return ngx_http_auth_crowd_authenticate(r, ctx, &ctx->passwd, alcf);
+	return ngx_http_auth_crowd_authenticate(r, ctx, &ctx->passwd, alcf);
     }
 
     /* Validate old SSO session */
@@ -417,7 +417,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	if (rc != NGX_OK)
 	    return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
     }
- 
+
     /* Create new SSO session */
     /* Decode http auth user and passwd, leaving values on the request */
     rc = ngx_http_auth_basic_user(r);
@@ -426,7 +426,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
     }
 
     if (rc == NGX_ERROR) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     /* Check user & password using Crowd */
@@ -436,10 +436,10 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 void print_headers(ngx_http_request_t *r, ngx_log_t *log) {
     ngx_uint_t i;
     ngx_array_t *cookie = &r->headers_in.cookies;
-    ngx_table_elt_t **elem; 
+    ngx_table_elt_t **elem;
     elem = cookie->elts;
     for (i = 0; i < cookie->nelts; i++) {
-        ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "'%V' -> '%V'", &elem[i]->key, &elem[i]->value);
+	ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, "'%V' -> '%V'", &elem[i]->key, &elem[i]->value);
     }
 }
 
@@ -449,8 +449,8 @@ ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *token)
     const char cookie_template[] = "crowd.token_key=%s;secure";
     ngx_table_elt_t  *h;
     char *cookie;
-    size_t len = sizeof(cookie_template) + strlen(token) - 2; 
-    
+    size_t len = sizeof(cookie_template) + strlen(token) - 2;
+
     cookie = ngx_pnalloc(r->pool, len);
     if (cookie == NULL) {
 	return NGX_ERROR;
@@ -460,9 +460,9 @@ ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *token)
 
     h = ngx_list_push(&r->headers_out.headers);
     if (h == NULL) {
-        return NGX_ERROR;
+	return NGX_ERROR;
     }
- 
+
     h->key.data = (u_char *) "Set-Cookie";
     h->key.len = sizeof("Set-Cookie") - 1;
 
@@ -492,13 +492,13 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
      **/
     for (len = 0; len < r->headers_in.user.len; len++) {
 	if (r->headers_in.user.data[len] == ':') {
-            break;
+	    break;
 	}
     }
 
     uname_buf = ngx_palloc(r->pool, len + 1);
     if (uname_buf == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     p = ngx_cpymem(uname_buf, r->headers_in.user.data , len);
     *p ='\0';
@@ -532,7 +532,7 @@ ngx_http_auth_crowd_set_realm(ngx_http_request_t *r, ngx_str_t *realm)
 {
     r->headers_out.www_authenticate = ngx_list_push(&r->headers_out.headers);
     if (r->headers_out.www_authenticate == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+	return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     r->headers_out.www_authenticate->hash = 1;
@@ -550,7 +550,7 @@ ngx_http_auth_crowd_create_loc_conf(ngx_conf_t *cf)
 
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_auth_crowd_loc_conf_t));
     if (conf == NULL) {
-        return NGX_CONF_ERROR;
+	return NGX_CONF_ERROR;
     }
 
     return conf;
@@ -563,19 +563,19 @@ ngx_http_auth_crowd_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_http_auth_crowd_loc_conf_t  *conf = child;
 
     if (conf->realm.data == NULL) {
-        conf->realm = prev->realm;
+	conf->realm = prev->realm;
     }
 
     if (conf->crowd_url.data == NULL) {
-        conf->crowd_url = prev->crowd_url;
+	conf->crowd_url = prev->crowd_url;
     }
 
     if (conf->crowd_service.data == NULL) {
-        conf->crowd_service = prev->crowd_service;
+	conf->crowd_service = prev->crowd_service;
     }
 
     if (conf->crowd_password.data == NULL) {
-        conf->crowd_password = prev->crowd_password;
+	conf->crowd_password = prev->crowd_password;
     }
 
     return NGX_CONF_OK;
@@ -591,7 +591,7 @@ ngx_http_auth_crowd_init(ngx_conf_t *cf)
 
     h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers);
     if (h == NULL) {
-        return NGX_ERROR;
+	return NGX_ERROR;
     }
 
     *h = ngx_http_auth_crowd_handler;
