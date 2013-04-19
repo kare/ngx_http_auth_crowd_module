@@ -295,19 +295,27 @@ cleanup:
 }
 
 static int
-get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, ngx_http_auth_crowd_ctx_t *cc)
+get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, ngx_http_auth_crowd_ctx_t *cc)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/config/cookie";
     u_char url_buf[256];
+    struct CrowdRequest request;
 
-    ngx_snprintf(url_buf, sizeof(url_buf), url_template, &crowd_request.server_url);
+    ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
-    crowd_request.request_url.data = url_buf;
-    crowd_request.request_url.len = ngx_strlen(url_buf);
-    crowd_request.method = 1;
-    ngx_str_null(&crowd_request.body);
+    request.request_url.data = url_buf;
+    request.request_url.len = ngx_strlen(url_buf);
 
-    return curl_transaction(r, crowd_request, 200, cc);
+    request.server_url = alcf->crowd_url;
+    request.server_username = alcf->crowd_service;
+    request.server_password = alcf->crowd_password;
+    ngx_str_null(&request.username);
+    ngx_str_null(&request.password);
+    ngx_str_null(&request.remote_addr);
+    ngx_str_null(&request.body);
+    request.method = 1;
+
+    return curl_transaction(r, request, 200, cc);
 }
 
 int create_sso_session(ngx_http_request_t *r, struct CrowdRequest crowd_request, char *token)
@@ -465,21 +473,13 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
     /* Find out cookie configuration */
     ctx = ngx_http_get_module_ctx(r, ngx_http_auth_crowd_module);
     if (!ctx) {
-	struct CrowdRequest request;
-
-	request.server_url = alcf->crowd_url;
-	request.server_username = alcf->crowd_service;
-	request.server_password = alcf->crowd_password;
-	ngx_str_null(&request.username);
-	ngx_str_null(&request.password);
-	ngx_str_null(&request.remote_addr);
 	ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_auth_crowd_ctx_t));
 	if (ctx == NULL) {
 	     return NGX_ERROR;
 	}
 	ngx_http_set_ctx(r, ctx, ngx_http_auth_crowd_module);
 
-	rc = get_cookie_config(r, request, ctx);
+	rc = get_cookie_config(r, alcf, ctx);
 	if (rc != NGX_OK) {
 	    return NGX_DECLINED;
 	}
