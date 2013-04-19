@@ -62,7 +62,7 @@ struct CrowdRequest {
     ngx_str_t username; /* only to basic auth */
     ngx_str_t password; /* only to basic auth */
     ngx_str_t remote_addr; /* client's ip */
-    const char *request_url; /* request url, including server_url */
+    ngx_str_t request_url; /* request url, including server_url */
     ngx_str_t body; /* request body */
     unsigned int method; /* 1 == GET */
 };
@@ -218,7 +218,6 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
 
     char error_message[CURL_ERROR_SIZE];
     u_char server_user_pass[128];
-    const char *request_url;
     int get_config = 0; /* this is terrible */
 
     request.body = (char *) crowd_request.body.data;
@@ -227,8 +226,6 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     /* we reallocate a bigger buffer when there is data to be received */
     response.body = calloc(1, sizeof(char *));
     response.length = 0;
-
-    request_url = crowd_request.request_url;
 
     CURL *curl = curl_easy_init();
     if (curl == NULL)
@@ -265,7 +262,8 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_easy_setopt(curl, CURLOPT_USERPWD, (char *) server_user_pass);
 
-    curl_easy_setopt(curl, CURLOPT_URL, request_url);
+    curl_easy_setopt(curl, CURLOPT_URL, crowd_request.request_url.data);
+
 
     /* do it now */
     CURLcode curl_code = curl_easy_perform(curl);
@@ -304,7 +302,8 @@ get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, ngx_
 
     ngx_snprintf(url_buf, sizeof(url_buf), url_template, &crowd_request.server_url);
 
-    crowd_request.request_url = (char *) url_buf;
+    crowd_request.request_url.data = url_buf;
+    crowd_request.request_url.len = ngx_strlen(url_buf);
     crowd_request.method = 1;
     ngx_str_null(&crowd_request.body);
 
@@ -324,7 +323,8 @@ int create_sso_session(ngx_http_request_t *r, struct CrowdRequest crowd_request,
 
     crowd_request.body.data = session_json;
     crowd_request.body.len = ngx_strlen(session_json);
-    crowd_request.request_url = (char *) url_buf;
+    crowd_request.request_url.data = url_buf;
+    crowd_request.request_url.len = ngx_strlen(url_buf);
     crowd_request.method = 0;
 
     return curl_transaction(r, crowd_request, 201, token);
@@ -341,7 +341,8 @@ int validate_sso_session_token(ngx_http_request_t *r, struct CrowdRequest crowd_
 
     crowd_request.body.data = session_json;
     crowd_request.body.len = ngx_strlen(session_json);
-    crowd_request.request_url = (char *) url_buf;
+    crowd_request.request_url.data = url_buf;
+    crowd_request.request_url.len = ngx_strlen(url_buf);
     crowd_request.method = 0;
 
     return curl_transaction(r, crowd_request, 200, NULL);
