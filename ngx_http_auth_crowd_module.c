@@ -54,14 +54,10 @@ static const char *CROWD_SESSION_VALIDATE_JSON_TEMPLATE= "{\
 
 struct CrowdRequest {
     /* from confifuration */
-    ngx_str_t server_url;
     ngx_str_t server_username;
     ngx_str_t server_password;
 
     /* dynamically generated */
-    ngx_str_t username; /* only to basic auth */
-    ngx_str_t password; /* only to basic auth */
-    ngx_str_t remote_addr; /* client's ip */
     ngx_str_t request_url; /* request url, including server_url */
     ngx_str_t body; /* request body */
     unsigned int method; /* 1 == GET */
@@ -306,12 +302,8 @@ get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, 
     request.request_url.data = url_buf;
     request.request_url.len = ngx_strlen(url_buf);
 
-    request.server_url = alcf->crowd_url;
     request.server_username = alcf->crowd_service;
     request.server_password = alcf->crowd_password;
-    ngx_str_null(&request.username);
-    ngx_str_null(&request.password);
-    ngx_str_null(&request.remote_addr);
     ngx_str_null(&request.body);
     request.method = 1;
 
@@ -327,10 +319,9 @@ int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *al
     struct CrowdRequest request;
     request.server_username = alcf->crowd_service;
     request.server_password = alcf->crowd_password;
-    request.remote_addr = r->connection->addr_text;
 
     ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
-	     username, password, &request.remote_addr);
+	     username, password, &alcf->crowd_url);
 
     ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
@@ -359,8 +350,6 @@ int validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_co
     request.request_url.len = ngx_strlen(url_buf);
     request.server_username = alcf->crowd_service;
     request.server_password = alcf->crowd_password;
-    ngx_str_null(&request.username);
-    ngx_str_null(&request.password);
     request.method = 0;
 
     return curl_transaction(r, request, 200, NULL);
