@@ -14,6 +14,13 @@
 
 // CROWD AUTHENTICATION
 
+/* Module context data */
+typedef struct {
+    char domain[128];
+    char name[128];
+    char secure[128];
+} ngx_http_auth_crowd_ctx_t;
+
 #define LOG(r) ((r)->connection->log)
 
 static const char *CROWD_SESSION_JSON_TEMPLATE= "{\
@@ -49,12 +56,6 @@ struct CrowdRequest {
 struct CrowdResponse {
     int response;
     char error_message[255];
-};
-
-struct cookie_config {
-    char domain[128];
-    char name[128];
-    char secure[128];
 };
 
 struct HttpResponse {
@@ -99,7 +100,7 @@ parse_name_value(const char *json, const char *name, char *value, size_t len, ch
 }
 
 static int
-parse_config_from_json(ngx_http_request_t *r, const char *json, struct cookie_config *cc)
+parse_config_from_json(ngx_http_request_t *r, const char *json, ngx_http_auth_crowd_ctx_t *cc)
 {
 //    {"domain":".my.domain.fi","secure":false,"name":"my-crowd.token_key"},
     const char *domain = "\"domain\":\"";
@@ -262,7 +263,7 @@ cleanup:
 }
 
 static int
-get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, struct cookie_config *cc)
+get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, ngx_http_auth_crowd_ctx_t *cc)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/config/cookie";
     u_char url_buf[256];
@@ -312,11 +313,6 @@ int validate_sso_session_token(ngx_http_request_t *r, struct CrowdRequest crowd_
     return curl_transaction(r, crowd_request, 200, NULL);
 }
 // END CROWD AUTHENTICATION
-
-/* Module context data */
-typedef struct {
-    struct cookie_config cconf;
-} ngx_http_auth_crowd_ctx_t;
 
 /* Crowd userinfo */
 typedef struct {
@@ -483,15 +479,15 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	}
 	ngx_http_set_ctx(r, ctx, ngx_http_auth_crowd_module);
 
-	rc = get_cookie_config(r, request, &ctx->cconf);
+	rc = get_cookie_config(r, request, ctx);
 	if (rc != NGX_OK) {
 	    return NGX_DECLINED;
 	}
     }
 
     /* Validate old SSO session */
-    name.data = (u_char *)ctx->cconf.name;
-    name.len = strlen(ctx->cconf.name);
+    name.data = (u_char *) ctx->name;
+    name.len = strlen(ctx->name);
     rc = ngx_http_auth_crowd_get_token(r, &name,  &token);
     if (rc != NGX_DECLINED) {
 	struct CrowdRequest request;
@@ -611,8 +607,8 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     char token[128];
     int status = create_sso_session(r, request, token);
     if (status == NGX_OK) {
-	return ngx_http_auth_crowd_set_cookie(r, ctx->cconf.name, token,
-					      ctx->cconf.domain, ctx->cconf.secure);
+	return ngx_http_auth_crowd_set_cookie(r, ctx->name, token,
+					      ctx->domain, ctx->secure);
     }
 
     return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
