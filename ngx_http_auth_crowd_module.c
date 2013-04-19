@@ -315,7 +315,6 @@ int validate_sso_session_token(ngx_http_request_t *r, struct CrowdRequest crowd_
 
 /* Module context data */
 typedef struct {
-    ngx_str_t  passwd;
     struct cookie_config cconf;
 } ngx_http_auth_crowd_ctx_t;
 
@@ -338,7 +337,7 @@ static ngx_int_t ngx_http_auth_crowd_handler(ngx_http_request_t *r);
 
 /* Function that authenticates the user -- is the only function that uses Crowd */
 static ngx_int_t ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
-    ngx_http_auth_crowd_ctx_t *ctx, ngx_str_t *passwd, void *conf);
+    ngx_http_auth_crowd_ctx_t *ctx, void *conf);
 
 static ngx_int_t ngx_http_auth_crowd_set_realm(ngx_http_request_t *r,
     ngx_str_t *realm);
@@ -521,7 +520,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
     }
 
     /* Check user & password using Crowd */
-    return ngx_http_auth_crowd_authenticate(r, ctx, &ctx->passwd, alcf);
+    return ngx_http_auth_crowd_authenticate(r, ctx, alcf);
 }
 
 void print_headers(ngx_http_request_t *r, ngx_log_t *log) {
@@ -569,7 +568,7 @@ ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *name, const ch
 
 static ngx_int_t
 ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
-    ngx_http_auth_crowd_ctx_t *ctx, ngx_str_t *passwd, void *conf)
+    ngx_http_auth_crowd_ctx_t *ctx, void *conf)
 {
     ngx_http_auth_crowd_loc_conf_t *alcf;
 
