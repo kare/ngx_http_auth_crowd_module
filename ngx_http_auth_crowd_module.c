@@ -58,7 +58,7 @@ struct CrowdRequest {
     ngx_str_t server_password;
 
     /* dynamically generated */
-    ngx_str_t request_url; /* request url, including server_url */
+    ngx_str_t request_url;
     ngx_str_t body; /* request body */
     unsigned int method; /* 1 == GET */
 };
@@ -207,7 +207,7 @@ void print_cookies(CURL *curl, ngx_log_t *log) {
     curl_slist_free_all(cookies);
 }
 
-int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, int expected_http_code, void *data)
+int curl_transaction(ngx_http_request_t *r, struct CrowdRequest *crowd_request, int expected_http_code, void *data)
 {
     struct HttpRequest request;
     struct HttpResponse response;
@@ -216,8 +216,8 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     u_char server_user_pass[128];
     int get_config = 0; /* this is terrible */
 
-    request.body = (char *) crowd_request.body.data;
-    request.length = crowd_request.body.len;
+    request.body = (char *) crowd_request->body.data;
+    request.length = crowd_request->body.len;
 
     /* we reallocate a bigger buffer when there is data to be received */
     response.body = calloc(1, sizeof(char *));
@@ -230,7 +230,7 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, "Accept: application/json");
-    if (crowd_request.method != 1)
+    if (crowd_request->method != 1)
 	headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Expect:");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -240,7 +240,7 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); /* don't verify host against cert */
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L); /* bounce through login to next page */
 
-    if (crowd_request.method == 1) {
+    if (crowd_request->method == 1) {
 	get_config = 1;
     } else {
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -254,11 +254,11 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "nginx-auth-agent/1.0");
 
     ngx_snprintf(server_user_pass, sizeof(server_user_pass), "%V:%V",
-	     &crowd_request.server_username, &crowd_request.server_password);
+	     &crowd_request->server_username, &crowd_request->server_password);
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_easy_setopt(curl, CURLOPT_USERPWD, (char *) server_user_pass);
 
-    curl_easy_setopt(curl, CURLOPT_URL, crowd_request.request_url.data);
+    curl_easy_setopt(curl, CURLOPT_URL, crowd_request->request_url.data);
 
 
     /* do it now */
@@ -307,7 +307,7 @@ get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, 
     ngx_str_null(&request.body);
     request.method = 1;
 
-    return curl_transaction(r, request, 200, cc);
+    return curl_transaction(r, &request, 200, cc);
 }
 
 int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *username, ngx_str_t *password, char *token)
@@ -331,7 +331,7 @@ int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *al
     request.request_url.len = ngx_strlen(url_buf);
     request.method = 0;
 
-    return curl_transaction(r, request, 201, token);
+    return curl_transaction(r, &request, 201, token);
 }
 
 int validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, const char *token)
@@ -352,7 +352,7 @@ int validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_co
     request.server_password = alcf->crowd_password;
     request.method = 0;
 
-    return curl_transaction(r, request, 200, NULL);
+    return curl_transaction(r, &request, 200, NULL);
 }
 // END CROWD AUTHENTICATION
 
