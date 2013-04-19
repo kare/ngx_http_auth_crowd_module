@@ -318,24 +318,29 @@ get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, 
     return curl_transaction(r, request, 200, cc);
 }
 
-int create_sso_session(ngx_http_request_t *r, struct CrowdRequest crowd_request, char *token)
+int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *username, ngx_str_t *password, char *token)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/session";
     u_char session_json[256];
     u_char url_buf[256];
 
+    struct CrowdRequest request;
+    request.server_username = alcf->crowd_service;
+    request.server_password = alcf->crowd_password;
+    request.remote_addr = r->connection->addr_text;
+
     ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
-	     &crowd_request.username, &crowd_request.password, &crowd_request.remote_addr);
+	     username, password, &request.remote_addr);
 
-    ngx_snprintf(url_buf, sizeof(url_buf), url_template, &crowd_request.server_url);
+    ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
-    crowd_request.body.data = session_json;
-    crowd_request.body.len = ngx_strlen(session_json);
-    crowd_request.request_url.data = url_buf;
-    crowd_request.request_url.len = ngx_strlen(url_buf);
-    crowd_request.method = 0;
+    request.body.data = session_json;
+    request.body.len = ngx_strlen(session_json);
+    request.request_url.data = url_buf;
+    request.request_url.len = ngx_strlen(url_buf);
+    request.method = 0;
 
-    return curl_transaction(r, crowd_request, 201, token);
+    return curl_transaction(r, request, 201, token);
 }
 
 int validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, const char *token)
@@ -592,16 +597,8 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     uinfo.password.data = r->headers_in.passwd.data;
     uinfo.password.len = r->headers_in.passwd.len;
 
-    struct CrowdRequest request;
-    request.username = uinfo.username;
-    request.password = uinfo.password;
-    request.server_url = alcf->crowd_url;
-    request.server_username = alcf->crowd_service;
-    request.server_password = alcf->crowd_password;
-    request.remote_addr = r->connection->addr_text;
-
     char token[128];
-    int status = create_sso_session(r, request, token);
+    int status = create_sso_session(r, alcf, &uinfo.username, &uinfo.password, token);
     if (status == NGX_OK) {
 	return ngx_http_auth_crowd_set_cookie(r, ctx->name, token,
 					      ctx->domain, ctx->secure);
