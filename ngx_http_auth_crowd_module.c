@@ -21,6 +21,20 @@ typedef struct {
     char secure[128];
 } ngx_http_auth_crowd_ctx_t;
 
+/* Crowd userinfo */
+typedef struct {
+    ngx_str_t  username;
+    ngx_str_t  password;
+} ngx_crowd_userinfo;
+
+/* Module configuration struct */
+typedef struct {
+    ngx_str_t	realm;		/* http basic auth realm */
+    ngx_str_t   crowd_url;  /* Crowd server URL */
+    ngx_str_t	crowd_service;	/* Crowd service name */
+    ngx_str_t   crowd_password;  /* Crowd service password */
+} ngx_http_auth_crowd_loc_conf_t;
+
 #define LOG(r) ((r)->connection->log)
 
 static const char *CROWD_SESSION_JSON_TEMPLATE= "{\
@@ -66,6 +80,26 @@ struct HttpRequest {
     const char *body;
     size_t length;
 };
+
+/* Module handler */
+static ngx_int_t ngx_http_auth_crowd_handler(ngx_http_request_t *r);
+
+static ngx_int_t ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
+    ngx_http_auth_crowd_ctx_t *ctx, void *conf);
+
+static ngx_int_t ngx_http_auth_crowd_set_realm(ngx_http_request_t *r,
+    ngx_str_t *realm);
+
+static void *ngx_http_auth_crowd_create_loc_conf(ngx_conf_t *cf);
+
+static char *ngx_http_auth_crowd_merge_loc_conf(ngx_conf_t *cf,
+    void *parent, void *child);
+
+static ngx_int_t ngx_http_auth_crowd_init(ngx_conf_t *cf);
+
+static char *ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data);
+
+static ngx_conf_post_handler_pt  ngx_http_auth_crowd_p = ngx_http_auth_crowd;
 
 static ngx_int_t
 ngx_http_auth_crowd_get_token(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *token)
@@ -313,41 +347,6 @@ int validate_sso_session_token(ngx_http_request_t *r, struct CrowdRequest crowd_
     return curl_transaction(r, crowd_request, 200, NULL);
 }
 // END CROWD AUTHENTICATION
-
-/* Crowd userinfo */
-typedef struct {
-    ngx_str_t  username;
-    ngx_str_t  password;
-} ngx_crowd_userinfo;
-
-/* Module configuration struct */
-typedef struct {
-    ngx_str_t	realm;		/* http basic auth realm */
-    ngx_str_t   crowd_url;  /* Crowd server URL */
-    ngx_str_t	crowd_service;	/* Crowd service name */
-    ngx_str_t   crowd_password;  /* Crowd service password */
-} ngx_http_auth_crowd_loc_conf_t;
-
-/* Module handler */
-static ngx_int_t ngx_http_auth_crowd_handler(ngx_http_request_t *r);
-
-/* Function that authenticates the user -- is the only function that uses Crowd */
-static ngx_int_t ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
-    ngx_http_auth_crowd_ctx_t *ctx, void *conf);
-
-static ngx_int_t ngx_http_auth_crowd_set_realm(ngx_http_request_t *r,
-    ngx_str_t *realm);
-
-static void *ngx_http_auth_crowd_create_loc_conf(ngx_conf_t *cf);
-
-static char *ngx_http_auth_crowd_merge_loc_conf(ngx_conf_t *cf,
-    void *parent, void *child);
-
-static ngx_int_t ngx_http_auth_crowd_init(ngx_conf_t *cf);
-
-static char *ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data);
-
-static ngx_conf_post_handler_pt  ngx_http_auth_crowd_p = ngx_http_auth_crowd;
 
 static char *
 ngx_http_auth_crowd(ngx_conf_t *cf, void *post, void *data)
