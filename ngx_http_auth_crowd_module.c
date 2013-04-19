@@ -17,18 +17,18 @@
 #define LOG(r) ((r)->connection->log)
 
 static const char *CROWD_SESSION_JSON_TEMPLATE= "{\
-  \"username\": \"%s\",\
-  \"password\": \"%s\",\
+  \"username\": \"%V\",\
+  \"password\": \"%V\",\
   \"validation-factors\": {\
       \"validationFactors\": [{\
            \"name\": \"remote_address\",\
-           \"value\": \"%s\"\
+           \"value\": \"%V\"\
 }]}}";
 
 static const char *CROWD_SESSION_VALIDATE_JSON_TEMPLATE= "{\
       \"validationFactors\": [{\
             \"name\": \"remote_address\", \
-            \"value\": \"%s\" \
+            \"value\": \"%V\" \
 }]}";
 
 struct CrowdRequest {
@@ -38,12 +38,11 @@ struct CrowdRequest {
     const char *server_password;
 
     /* dynamically generated */
-    const char *username; /* only to basic auth */
-    const char *password; /* only to basic auth */
-    const char *remote_addr; /* client's ip */
+    ngx_str_t username; /* only to basic auth */
+    ngx_str_t password; /* only to basic auth */
+    ngx_str_t remote_addr; /* client's ip */
     const char *request_url; /* request url, including server_url */
-    const char *body; /* request body */
-    unsigned int body_length;
+    ngx_str_t body; /* request body */
     unsigned int method; /* 1 == GET */
 };
 
@@ -108,7 +107,6 @@ parse_config_from_json(ngx_http_request_t *r, const char *json, struct cookie_co
     const char *secure = "\"secure\":";
     char buff[6];
     int ec1, ec2, ec3;
-
 
     ec1 = parse_name_value(json, domain, cc->domain, 128, '"');
     ec2 = parse_name_value(json, name, cc->name, 128, '"');
@@ -188,8 +186,8 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest crowd_request, i
     const char *request_url;
     int get_config = 0; /* this is terrible */
 
-    request.body = crowd_request.body;
-    request.length = crowd_request.body_length;
+    request.body = (char *) crowd_request.body.data;
+    request.length = crowd_request.body.len;
 
     /* we reallocate a bigger buffer when there is data to be received */
     response.body = calloc(1, sizeof(char *));
@@ -273,8 +271,7 @@ get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, stru
 
     crowd_request.request_url = url_buf;
     crowd_request.method = 1;
-    crowd_request.body = NULL;
-    crowd_request.body_length = 0;
+    ngx_str_null(&crowd_request.body);
 
     return curl_transaction(r, crowd_request, 200, cc);
 }
@@ -282,19 +279,16 @@ get_cookie_config(ngx_http_request_t *r, struct CrowdRequest crowd_request, stru
 int create_sso_session(ngx_http_request_t *r, struct CrowdRequest crowd_request, char *token)
 {
     const char *url_template = "%s/crowd/rest/usermanagement/latest/session";
-    char session_json[256];
+    u_char session_json[256];
     char url_buf[256];
 
-    snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
-//	     crowd_request.username, crowd_request.password, crowd_request.remote_addr);
-	     crowd_request.username, crowd_request.password, "10.1.7.20");
-
-    ngx_log_debug(NGX_LOG_DEBUG_HTTP, LOG(r), 0,  "######## Remote address  %s\n", crowd_request.remote_addr);
+    ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
+	     &crowd_request.username, &crowd_request.password, &crowd_request.remote_addr);
 
     snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url);
 
-    crowd_request.body = session_json;
-    crowd_request.body_length = strlen(session_json);
+    crowd_request.body.data = session_json;
+    crowd_request.body.len = ngx_strlen(session_json);
     crowd_request.request_url = url_buf;
     crowd_request.method = 0;
 
@@ -304,16 +298,14 @@ int create_sso_session(ngx_http_request_t *r, struct CrowdRequest crowd_request,
 int validate_sso_session_token(ngx_http_request_t *r, struct CrowdRequest crowd_request, const char *token)
 {
     const char *url_template = "%s/crowd/rest/usermanagement/latest/session/%s";
-    char session_json[256];
+    u_char session_json[256];
     char url_buf[256];
 
-    snprintf(session_json, sizeof(session_json), CROWD_SESSION_VALIDATE_JSON_TEMPLATE,
-//	     crowd_request.remote_addr); sometime there is carbage after address. Seems not be null terminated
-	     "10.1.7.20");
+    ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_VALIDATE_JSON_TEMPLATE, &crowd_request.remote_addr);
     snprintf(url_buf, sizeof(url_buf), url_template, crowd_request.server_url, token);
 
-    crowd_request.body = session_json;
-    crowd_request.body_length = strlen(session_json);
+    crowd_request.body.data = session_json;
+    crowd_request.body.len = ngx_strlen(session_json);
     crowd_request.request_url = url_buf;
     crowd_request.method = 0;
 
@@ -483,9 +475,9 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	request.server_url = (char *) alcf->crowd_url.data;
 	request.server_username = (char *) alcf->crowd_service.data;
 	request.server_password = (char *) alcf->crowd_password.data;
-	request.username = NULL;
-	request.password = NULL;
-	request.remote_addr = NULL;
+	ngx_str_null(&request.username);
+	ngx_str_null(&request.password);
+	ngx_str_null(&request.remote_addr);
 	ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_auth_crowd_ctx_t));
 	if (ctx == NULL) {
 	     return NGX_ERROR;
@@ -508,9 +500,9 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	request.server_url = (char *) alcf->crowd_url.data;
 	request.server_username = (char *) alcf->crowd_service.data;
 	request.server_password = (char *) alcf->crowd_password.data;
-	request.username = NULL;
-	request.password = NULL;
-	request.remote_addr = (char *) r->connection->addr_text.data;
+	ngx_str_null(&request.username);
+	ngx_str_null(&request.password);
+	request.remote_addr = r->connection->addr_text;
 
 	rc = validate_sso_session_token(r, request, (const char *)token.data);
 	if (rc != NGX_OK)
@@ -610,12 +602,12 @@ ngx_http_auth_crowd_authenticate(ngx_http_request_t *r,
     uinfo.password.len = r->headers_in.passwd.len;
 
     struct CrowdRequest request;
-    request.username = (char *) uinfo.username.data;
-    request.password = (char *) uinfo.password.data;
+    request.username = uinfo.username;
+    request.password = uinfo.password;
     request.server_url = (char *) alcf->crowd_url.data;
     request.server_username = (char *) alcf->crowd_service.data;
     request.server_password = (char *) alcf->crowd_password.data;
-    request.remote_addr = (char *) r->connection->addr_text.data;
+    request.remote_addr = r->connection->addr_text;
 
     char token[128];
     int status = create_sso_session(r, request, token);
