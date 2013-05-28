@@ -1,8 +1,10 @@
 /*
- * Copyright (C) 2008-2010 Sergio Talens-Oliag <sto@iti.upv.es>
- *
+ * Copyright (C) 2013 Reaktor
+ * 	Kare Nuorteva <kare.nuorteva@reaktor.fi>
+ *	Pasi Savanainen <pasi.savanainen@reaktor.fi>
+ * 
  * Based on nginx's 'ngx_http_auth_basic_module.c' by Igor Sysoev and apache's
- * 'mod_auth_pam.c' by Ingo Luetkebolhe.
+ * 'mod_auth_pam.c' by Ingo Luetkebolhe and ngx_http_auth_pam_module.c by Sergio Talens-Oliag 
  *
  */
 
