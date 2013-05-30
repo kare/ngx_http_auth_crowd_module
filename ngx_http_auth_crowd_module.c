@@ -215,7 +215,7 @@ int curl_transaction(ngx_http_request_t *r, struct CrowdRequest *crowd_request, 
     struct HttpResponse response;
 
     char error_message[CURL_ERROR_SIZE];
-    u_char server_user_pass[128];
+    u_char server_user_pass[128] = {'\0'};
     int get_config = 0; /* this is terrible */
 
     request.body = (char *) crowd_request->body.data;
@@ -296,7 +296,7 @@ static int
 get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, ngx_http_auth_crowd_ctx_t *cc)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/config/cookie";
-    u_char url_buf[256];
+    u_char url_buf[256] = {'\0'};
     struct CrowdRequest request;
 
     ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
@@ -315,8 +315,8 @@ get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, 
 int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *username, ngx_str_t *password, char *token)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/session";
-    u_char session_json[256];
-    u_char url_buf[256];
+    u_char session_json[256] = {'\0'};
+    u_char url_buf[256]= {'\0'};
 
     struct CrowdRequest request;
     request.server_username = alcf->crowd_service;
@@ -339,8 +339,8 @@ int create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *al
 int validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, const char *token)
 {
     const char *url_template = "%V/crowd/rest/usermanagement/latest/session/%s";
-    u_char session_json[256];
-    u_char url_buf[256];
+    u_char session_json[256] = {'\0'};
+    u_char url_buf[256] = {'\0'};
     struct CrowdRequest request;
 
     ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_VALIDATE_JSON_TEMPLATE, &r->connection->addr_text);
