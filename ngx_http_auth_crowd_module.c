@@ -473,19 +473,19 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 
     /* Find out cookie configuration */
     ctx = ngx_http_get_module_ctx(r, ngx_http_auth_crowd_module);
-    if (!ctx) {
+    if (!ctx) {	
 	ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_auth_crowd_ctx_t));
 	if (ctx == NULL) {
 	     return NGX_ERROR;
 	}
-	ngx_http_set_ctx(r, ctx, ngx_http_auth_crowd_module);
 
 	rc = get_cookie_config(r, alcf, ctx);
 	if (rc != NGX_OK) {
-	    return NGX_DECLINED;
+	    return NGX_HTTP_SERVICE_UNAVAILABLE; 
 	}
-    }
 
+	ngx_http_set_ctx(r, ctx, ngx_http_auth_crowd_module);
+    }
     /* Validate old SSO session */
     name.data = (u_char *) ctx->name;
     name.len = strlen(ctx->name);
