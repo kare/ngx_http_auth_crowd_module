@@ -299,7 +299,7 @@ cleanup:
 static int
 get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, ngx_http_auth_crowd_ctx_t *cc)
 {
-	const char *url_template = "%V/crowd/rest/usermanagement/latest/config/cookie";
+	const char *url_template = "%V/rest/usermanagement/latest/config/cookie";
 	u_char url_buf[256] = { '\0' };
 	struct CrowdRequest request;
 
@@ -320,7 +320,7 @@ int
 create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *username,
 		ngx_str_t *password, char *token)
 {
-	const char *url_template = "%V/crowd/rest/usermanagement/latest/session";
+	const char *url_template = "%V/rest/usermanagement/latest/session";
 	u_char session_json[256] = { '\0' };
 	u_char url_buf[256]= { '\0' };
 
@@ -345,7 +345,7 @@ create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, 
 int
 validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, const char *token)
 {
-	const char *url_template = "%V/crowd/rest/usermanagement/latest/session/%s";
+	const char *url_template = "%V/rest/usermanagement/latest/session/%s";
 	u_char session_json[256] = { '\0' };
 	u_char url_buf[256] = { '\0' };
 	struct CrowdRequest request;
