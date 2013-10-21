@@ -329,7 +329,7 @@ create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, 
 	request.server_password = alcf->crowd_password;
 
 	ngx_snprintf(session_json, sizeof(session_json), CROWD_SESSION_JSON_TEMPLATE,
-		username, password, &alcf->crowd_url);
+		username, password, &r->connection->addr_text);
 
 	ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
