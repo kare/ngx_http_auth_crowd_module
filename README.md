@@ -1,4 +1,3 @@
-
 # Nginx http auth crowd module
 
 ## Configure and compile Nginx
@@ -15,7 +14,7 @@ http://wiki.nginx.org/HttpSslModule
 server {
     location /restricted {
         auth_crowd              "Restricted Zone Realm";
-        auth_crowd_url          "https://crowd.server.address.fi/";
+        auth_crowd_url          "https://crowd.server.address.fi/crowd";
         auth_crowd_service      "crowd-authenticator-username";
         auth_crowd_password     "secret";
     }
