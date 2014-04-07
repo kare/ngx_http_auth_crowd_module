@@ -20,3 +20,12 @@ server {
     }
 }
 ```
+### Development
+ See
+ ```bash
+ get-started.sh
+ ```
+ for details.
+### Developer Links
+ * [Emiller's Guide To Nginx Module
+         Development](http://www.evanmiller.org/nginx-modules-guide.html)
