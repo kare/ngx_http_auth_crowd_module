@@ -21,11 +21,7 @@ server {
 }
 ```
 ### Development
- See
- ```bash
- [get-started.sh](https://github.com/kare/ngx_http_auth_crowd_module/blob/master/get-started.sh)
- ```
- for details.
+ See [get-started.sh](https://github.com/kare/ngx_http_auth_crowd_module/blob/master/get-started.sh) for details.
 ### Developer Links
  * [Emiller's Guide To Nginx Module
          Development](http://www.evanmiller.org/nginx-modules-guide.html)
