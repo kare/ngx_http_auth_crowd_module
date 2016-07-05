@@ -3,8 +3,8 @@
 ## Configure and compile Nginx
 
 ```bash
-$ ./configure --add-module=../ngx_http_auth_crowd_module --conf-path=/Users/kare/nginx-crowd/ngx_http_auth_crowd_module/conf/nginx.conf --with-debug --with-http_ssl_module
-$ make
+$ ./configure --add-dynamic-module=../ngx_http_auth_crowd_module --with-debug --with-http_ssl_module
+$ make modules
 ```
 http://wiki.nginx.org/HttpSslModule
 
