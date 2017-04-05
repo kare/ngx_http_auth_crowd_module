@@ -343,7 +343,7 @@ create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, 
 }
 
 int
-validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, const char *token)
+validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *token)
 {
 	const char *url_template = "%V/rest/usermanagement/latest/session/%s";
 	u_char session_json[256] = { '\0' };
@@ -497,7 +497,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	name.len = strlen(ctx->name);
 	rc = ngx_http_auth_crowd_get_token(r, &name,  &token);
 	if (rc != NGX_DECLINED) {
-		rc = validate_sso_session_token(r, alcf, (const char *)token.data);
+		rc = validate_sso_session_token(r, alcf, &token);
 		if (rc != NGX_OK)
 			return ngx_http_auth_crowd_set_realm(r, &alcf->realm);
 	}
