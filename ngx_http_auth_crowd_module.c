@@ -345,7 +345,7 @@ create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, 
 int
 validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, ngx_str_t *token)
 {
-	const char *url_template = "%V/rest/usermanagement/latest/session/%s";
+	const char *url_template = "%V/rest/usermanagement/latest/session/%V";
 	u_char session_json[256] = { '\0' };
 	u_char url_buf[256] = { '\0' };
 	struct CrowdRequest request;
