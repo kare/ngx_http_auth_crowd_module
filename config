@@ -3,6 +3,7 @@ ngx_addon_name=ngx_http_auth_crowd_module
 if test -n "$ngx_module_link"; then
     ngx_module_type=HTTP
     ngx_module_name=ngx_http_auth_crowd_module
+    ngx_module_libs="$(${PKG_CONFIG:=pkg-config} --libs curl)"
     ngx_module_srcs="$ngx_addon_dir/ngx_http_auth_crowd_module.c"
     . auto/module
 else
