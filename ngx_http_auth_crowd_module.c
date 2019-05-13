@@ -242,7 +242,13 @@ curl_transaction(ngx_http_request_t *r, struct CrowdRequest *crowd_request, int 
 	headers = curl_slist_append(headers, "Expect:");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+	/* Log all curl requests, only use this for debugging */
+	#if DEBUG
+		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+	#else
+		curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);
+	#endif
+	
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); /* don't verify peer against cert */
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); /* don't verify host against cert */
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L); /* bounce through login to next page */
@@ -305,8 +311,7 @@ get_cookie_config(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t  *alcf, 
 
 	ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
-	request.request_url.data = url_buf;
-	request.request_url.len = ngx_strlen(url_buf);
+	ngx_str_set(&request.request_url, url_buf);
 
 	request.server_username = alcf->crowd_service;
 	request.server_password = alcf->crowd_password;
@@ -333,10 +338,8 @@ create_sso_session(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t *alcf, 
 
 	ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url);
 
-	request.body.data = session_json;
-	request.body.len = ngx_strlen(session_json);
-	request.request_url.data = url_buf;
-	request.request_url.len = ngx_strlen(url_buf);
+	ngx_str_set(&request.body, session_json);
+	ngx_str_set(&request.request_url, url_buf);
 	request.method = 0;
 
 	return curl_transaction(r, &request, 201, token);
@@ -354,10 +357,8 @@ validate_sso_session_token(ngx_http_request_t *r, ngx_http_auth_crowd_loc_conf_t
 			CROWD_SESSION_VALIDATE_JSON_TEMPLATE, &r->connection->addr_text);
 	ngx_snprintf(url_buf, sizeof(url_buf), url_template, &alcf->crowd_url, token);
 
-	request.body.data = session_json;
-	request.body.len = ngx_strlen(session_json);
-	request.request_url.data = url_buf;
-	request.request_url.len = ngx_strlen(url_buf);
+	ngx_str_set(&request.body, session_json);
+	ngx_str_set(&request.request_url, url_buf);
 	request.server_username = alcf->crowd_service;
 	request.server_password = alcf->crowd_password;
 	request.method = 0;
@@ -493,8 +494,7 @@ ngx_http_auth_crowd_handler(ngx_http_request_t *r)
 	}
 
 	/* Validate old SSO session */
-	name.data = (u_char *) ctx->name;
-	name.len = strlen(ctx->name);
+	ngx_str_set(&name, ctx->name);
 	rc = ngx_http_auth_crowd_get_token(r, &name,  &token);
 	if (rc != NGX_DECLINED) {
 		rc = validate_sso_session_token(r, alcf, &token);
@@ -552,12 +552,8 @@ ngx_http_auth_crowd_set_cookie(ngx_http_request_t *r, const char *name, const ch
 		return NGX_ERROR;
 	}
 
-	h->key.data = (u_char *) "Set-Cookie";
-	h->key.len = sizeof("Set-Cookie") - 1;
-
-	h->value.data = (u_char *)cookie;
-	h->value.len = len - 1;
-
+	ngx_str_set(&h->key, "Set-Cookie");
+	ngx_str_set(&h->value, cookie);
 	h->hash = 1;
 
 	return NGX_OK;
@@ -614,8 +610,7 @@ ngx_http_auth_crowd_set_realm(ngx_http_request_t *r, ngx_str_t *realm)
 	}
 
 	r->headers_out.www_authenticate->hash = 1;
-	r->headers_out.www_authenticate->key.len = sizeof("WWW-Authenticate") - 1;
-	r->headers_out.www_authenticate->key.data = (u_char *) "WWW-Authenticate";
+	ngx_str_set(&r->headers_out.www_authenticate->key, "WWW-Authenticate");
 	r->headers_out.www_authenticate->value = *realm;
 
 	return NGX_HTTP_UNAUTHORIZED;
