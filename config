@@ -1,5 +1,7 @@
 ngx_addon_name=ngx_http_auth_crowd_module
 
+ngx_module_libs="-lcurl"
+
 if test -n "$ngx_module_link"; then
     ngx_module_type=HTTP
     ngx_module_name=ngx_http_auth_crowd_module
